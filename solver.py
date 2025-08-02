@@ -1,79 +1,47 @@
-# solver.py
-import time
-from zoo_grid import can_place_resource
-from zoo_grid import place_resource
 import numpy as np
-
-
-
-# def solve_level(level, resources):
-#     grid       = np.array(level["base_grid"])
-#     lvl        = level["level"]
-#     avail      = level["available_resources"]
-#     placements = []
-#     # pre‐check grid size/ids once
-#     # from zoo_grid import check_grid_size, check_allowed_ids
-#     # check_grid_size(grid, lvl)
-#     # check_allowed_ids(grid, lvl)
-
-#     # build sorted list of (rid, orient_idx, cell_count)
-#     items = []
-#     for rid in avail:
-#         res = resources[rid]
-#         for oi, orient in enumerate(res["orientations"]):
-#             items.append((rid, oi, len(orient["cells"])))
-#     items.sort(key=lambda x: x[2], reverse=True)
-    
-    
-    
-
-#     placed_any = True
-#     while placed_any:
-#         placed_any = False
-#         for rid, oi, _ in items:
-#             res = resources[rid]
-#             for r in range(grid.shape[0]):
-#                 for c in range(grid.shape[1]):
-#                     if can_place_resource(grid, res, oi, (r,c), level=lvl):
-#                         place_resource     (grid, res, oi, (r,c))
-#                         placements.append({"resource_id":rid,
-#                                            "rotation":   oi,
-#                                            "top":        r,
-#                                            "left":       c})
-#                         placed_any = True
-#         # if in a full sweep nothing got placed, loop will exit
-
-#     return {"grid": grid, "placements": placements}
+from zoo_grid import can_place_resource, place_resource
+from collections import Counter
 
 def solve_level(level, resources):
-    grid       = np.array(level["base_grid"])
-    lvl        = level["level"]
-    avail      = level["available_resources"]
+    grid = np.array(level["base_grid"])
+    lvl = level["level"]
+    avail = level["available_resources"]
     placements = []
+    type_counts = Counter()
+    total_cost = 0
 
-    # Build sorted list of (rid, oi, cell_count), largest pieces first
-    items = []
+    # --- Step 1: Precompute value list (IF/cost) ---
+    value_resources = []
     for rid in avail:
         res = resources[rid]
+        IF = res["interest_factor"]
+        cost = res["cost"]
         for oi, orient in enumerate(res["orientations"]):
-            items.append((rid, oi, len(orient["cells"])))
-    items.sort(key=lambda x: x[2], reverse=True)
+            value = IF / cost if cost else IF
+            value_resources.append((value, rid, oi, IF, cost))
+    value_resources.sort(reverse=True)  # Highest IF/cost first
 
-    # For each cell, try each resource (and orientation), in order of largest to smallest
-    for r in range(grid.shape[0]):
-        for c in range(grid.shape[1]):
-            if grid[r, c] != 1:
-                continue  # already filled
-            for rid, oi, _ in items:
-                res = resources[rid]
-                if can_place_resource(grid, res, oi, (r,c), level=lvl):
-                    place_resource(grid, res, oi, (r,c))
+    # --- Step 2: Pick Top N Resource/Orientation pairs ---
+    TOP_N = 6  # You can adjust N (5–8 is a good range)
+    top_resources = value_resources[:TOP_N]
+
+    height, width = grid.shape
+
+    # --- Step 3: For each resource, fill as much as possible, round robin style ---
+    for _, rid, oi, IF, cost in top_resources:
+        res = resources[rid]
+        for r in range(height):
+            for c in range(width):
+                if grid[r, c] != 1:
+                    continue
+                if can_place_resource(grid, res, oi, (r, c), level=lvl):
+                    place_resource(grid, res, oi, (r, c))
                     placements.append({
                         "resource_id": rid,
                         "rotation": oi,
                         "top": r,
                         "left": c
                     })
-                    break  # only place one resource at each cell, then move to next cell
-
+                    type_counts[rid] += 1
+                    total_cost += cost
     return {"grid": grid, "placements": placements}
