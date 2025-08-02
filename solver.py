@@ -1,43 +1,36 @@
-# solver.py (at top)
-import time
-from zoo_grid import can_place_resource
-from zoo_grid import place_resource
+from zoo_grid import can_place_resource, place_resource
 import numpy as np
 
-
-
 def solve_level(level, resources):
-    grid       = np.array(level["base_grid"])
-    lvl        = level["level"]
-    avail      = level["available_resources"]
+    grid = np.array(level["base_grid"])
+    lvl = level["level"]
+    avail = level["available_resources"]
     placements = []
-    # pre‐check grid size/ids once
-    # from zoo_grid import check_grid_size, check_allowed_ids
-    # check_grid_size(grid, lvl)
-    # check_allowed_ids(grid, lvl)
-
-    # build sorted list of (rid, orient_idx, cell_count)
-    items = []
-    for rid in avail:
-        res = resources[rid]
-        for oi, orient in enumerate(res["orientations"]):
-            items.append((rid, oi, len(orient["cells"])))
-    items.sort(key=lambda x: x[2], reverse=True)
-
-    placed_any = True
-    while placed_any:
-        placed_any = False
-        for rid, oi, _ in items:
-            res = resources[rid]
-            for r in range(grid.shape[0]):
-                for c in range(grid.shape[1]):
-                    if can_place_resource(grid, res, oi, (r,c), level=lvl):
-                        place_resource     (grid, res, oi, (r,c))
-                        placements.append({"resource_id":rid,
-                                           "rotation":   oi,
-                                           "top":        r,
-                                           "left":       c})
-                        placed_any = True
-        # if in a full sweep nothing got placed, loop will exit
-
+    
+    # Initialize resource counts
+    resource_counts = {rid: 0 for rid in avail}
+    
+    # Build list of (rid, orient_idx)
+    items = [(rid, oi) for rid in avail for oi in range(len(resources[rid]["orientations"]))]
+    
+    # Single pass over the grid
+    for r in range(grid.shape[0]):
+        for c in range(grid.shape[1]):
+            if grid[r, c] != 1:  # Skip occupied or invalid cells
+                continue
+            # Find all valid placements at this position
+            valid_placements = []
+            for rid, oi in items:
+                if can_place_resource(grid, resources[rid], oi, (r, c), level=lvl):
+                    valid_placements.append((rid, oi))
+            if valid_placements:
+                # Choose resource with minimum count for balance
+                min_count = min(resource_counts[rid] for rid, _ in valid_placements)
+                candidates = [(rid, oi) for rid, oi in valid_placements if resource_counts[rid] == min_count]
+                # Break ties by smallest resource ID
+                rid, oi = min(candidates, key=lambda x: x[0])
+                place_resource(grid, resources[rid], oi, (r, c))
+                placements.append({"resource_id": rid, "rotation": oi, "top": r, "left": c})
+                resource_counts[rid] += 1
+    
     return {"grid": grid, "placements": placements}

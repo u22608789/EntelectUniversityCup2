@@ -10,11 +10,16 @@ def main():
     res = load_resources(Path("resources.json"))
     lvl = parse_level   (Path("1.txt"))
 
+
     from zoo_grid import check_grid_size, check_allowed_ids
     check_grid_size(np.array(lvl["base_grid"]), lvl["level"])
     check_allowed_ids(np.array(lvl["base_grid"]), lvl["level"])
 
+
     out = solve_level(lvl, res)
+
+    print("HELLO")
+
     grid, placements = out["grid"], out["placements"]
     print(f"Placed {len(placements)} items.")
 
