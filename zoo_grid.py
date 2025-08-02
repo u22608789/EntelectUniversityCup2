@@ -5,8 +5,8 @@ import numpy as np
 from utils import chebyshev_dist, in_bounds
 
 # ─── CONFIGURATION ─────────────────────────────────────────────
-# Change this to 1, 2 or 3 to pick your rule set
-DEFAULT_LEVEL = 3
+# Change this to 1, 2, 3 or 4 to pick your rule set
+DEFAULT_LEVEL = 4
 
 # Path to your resources.json
 RESOURCES_FILE = "resources.json"
@@ -23,14 +23,20 @@ RESOURCE_MAP = {r["resource_id"]: r for r in _RESOURCES}
 ALLOWED_IDS = {
     1: {1, 3, 4, 6, 9, 10, 11, 14, 15, 20, 21},
     2: {r["resource_id"] for r in _RESOURCES if r["resource_id"] <= 22},
-    3: {r["resource_id"] for r in _RESOURCES},  # all resources available
+    3: {r["resource_id"] for r in _RESOURCES},
+    4: {r["resource_id"] for r in _RESOURCES},
 }
 
 
 def check_grid_size(grid: np.ndarray, level: int = None):
     """Ensure grid shape matches the chosen level."""
     lvl = level or DEFAULT_LEVEL
-    expected = {1: (50, 50), 2: (100, 100), 3: (300, 300)}[lvl]
+    expected = {
+        1: (50, 50),
+        2: (100, 100),
+        3: (300, 300),
+        4: (800, 800),
+    }[lvl]
     if grid.shape != expected:
         raise ValueError(f"Level {lvl} needs grid size {expected}, got {grid.shape}")
 
@@ -106,7 +112,7 @@ def place_resource(grid: np.ndarray,
     Stamp `resource` into `grid`.  
     If you pass a `record` list it will append a dict
       { "resource": resource, "orient_idx": orient_idx, "top_left": top_left }
-    so you can later compute scoring for Level 3.
+    so you can later compute scoring for Level 3 & 4.
     """
     cells = resource["orientations"][orient_idx]["cells"]
     rid   = resource["resource_id"]
@@ -128,7 +134,7 @@ def print_grid(grid: np.ndarray):
         print(" ".join(f"{x:2}" for x in row))
 
 
-# ─── Level 3 Scoring ────────────────────────────────────────────
+# ─── Level 3 / 4 Scoring HELPERS ────────────────────────────────
 
 def _get_placement_cells(placement: dict) -> set[tuple[int,int]]:
     """Return the set of absolute grid‐cells occupied by one placement."""
@@ -142,17 +148,10 @@ def _get_placement_cells(placement: dict) -> set[tuple[int,int]]:
 def compute_level3_score(grid: np.ndarray,
                          placements: list[dict]) -> float:
     """
-    Level 3 gross score = (TotalInterestScore × UtilizedArea × BalanceMultiplier) / 10000
-
-    - TotalInterestScore = Σ [ interest_factor
-                              + 0.1 × Σ(neighbor.interest_factor)
-                            ] over all placements
-      where “neighbor” is any other placement within Chebyshev distance ≤ 10.
-
-    - UtilizedArea = count of grid cells ≠ 1
-    - BalanceMultiplier = same as Level 1/2 (must be computed elsewhere)
+    Gross Score = (TotalInterestScore × UtilizedArea × BalanceMultiplier) / 10 000
+    as defined in Level 3.
     """
-    # 1) build cell‐sets for fast distance checks
+    # 1) build cell‐sets for fast neighbor checks
     cell_sets = [ _get_placement_cells(p) for p in placements ]
     interest_score = 0.0
 
@@ -162,18 +161,12 @@ def compute_level3_score(grid: np.ndarray,
         for j, q in enumerate(placements):
             if i == j:
                 continue
-            # check minimal Chebyshev distance between any cell in i & j
-            near = False
-            for (r1, c1) in cell_sets[i]:
-                # early‐exit inner loop
-                if any(
-                    max(abs(r1 - r2), abs(c1 - c2)) <= 10
-                    for (r2, c2) in cell_sets[j]
-                ):
-                    near = True
-                    break
-                if near:
-                    break
+            # any cell-to-cell Chebyshev ≤ 10?
+            near = any(
+                max(abs(r1 - r2), abs(c1 - c2)) <= 10
+                for (r1, c1) in cell_sets[i]
+                for (r2, c2) in cell_sets[j]
+            )
             if near:
                 boost += q["resource"]["interest_factor"] * 0.10
 
@@ -182,14 +175,29 @@ def compute_level3_score(grid: np.ndarray,
     # 2) utilized area
     utilized_area = int(np.count_nonzero(grid != 1))
 
-    # 3) resource balance multiplier
-    #    (reuse your existing function from L1/L2)
+    # 3) balance multiplier (reuse your Level 1/2 util)
     from utils import compute_balance_multiplier
     balance_mul = compute_balance_multiplier(grid)
 
-    # 4) final gross score
-    gross = (interest_score * utilized_area * balance_mul) / 10_000
-    return gross
+    # 4) gross
+    return (interest_score * utilized_area * balance_mul) / 10_000
+
+
+def compute_level4_score(grid: np.ndarray,
+                         placements: list[dict]) -> float:
+    """
+    Level 4 Score = GrossScore / (1 + (TotalCost / 10 000 000))
+    """
+    # 1) gross from Level 3
+    gross = compute_level3_score(grid, placements)
+
+    # 2) total cost of all placed resources
+    total_cost = sum(p["resource"]["cost"] for p in placements)
+
+    # 3) penalty factor
+    penalty = 1 + (total_cost / 10_000_000)
+
+    return gross / penalty
 
 
 def compute_score(grid: np.ndarray,
@@ -197,7 +205,9 @@ def compute_score(grid: np.ndarray,
                   level: int = None) -> float:
     """Dispatch to the right scoring function for the chosen level."""
     lvl = level or DEFAULT_LEVEL
-    if lvl == 3:
+    if   lvl == 3:
         return compute_level3_score(grid, placements)
+    elif lvl == 4:
+        return compute_level4_score(grid, placements)
     else:
         raise NotImplementedError(f"Scoring for Level {lvl} is not in this module")

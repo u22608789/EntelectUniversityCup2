@@ -9,7 +9,9 @@ import numpy as np
 def main():
     res = load_resources(Path("resources.json"))
     # lvl = parse_level   (Path("1.txt"))
-    lvl = parse_level   (Path("3.txt"))
+    # lvl = parse_level   (Path("2.txt"))
+    # lvl = parse_level   (Path("3.txt"))
+    lvl = parse_level   (Path("4.txt"))
 
     from zoo_grid import check_grid_size, check_allowed_ids
     check_grid_size(np.array(lvl["base_grid"]), lvl["level"])
