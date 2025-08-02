@@ -3,11 +3,22 @@
 import numpy as np
 from utils import chebyshev_dist, in_bounds
 
+ALLOWED_IDS_LEVEL_1 = set([1, 3, 4, 6, 9, 10, 11, 14, 15, 20, 21])
+ALLOWED_IDS_LEVEL_2 = set([1, 4, 6, 9, 10, 11, 21, 20, 2, 3, 5, 7, 8, 12, 13, 14, 15, 16, 17, 18, 19, 22])
+
 def check_grid_size(grid, level):
     if level == 1 and grid.shape != (50, 50):
         raise ValueError(f"Level 1 grid must be 50x50, but got {grid.shape}")
     if level >= 2 and grid.shape != (100, 100):
         raise ValueError(f"Level 2+ grid must be 100x100, but got {grid.shape}")
+
+def check_allowed_ids(grid, level):
+    allowed_ids = ALLOWED_IDS_LEVEL_1 if level == 1 else ALLOWED_IDS_LEVEL_2
+    for r in range(grid.shape[0]):
+        for c in range(grid.shape[1]):
+            val = grid[r, c]
+            if val not in allowed_ids:
+                raise ValueError(f"Invalid resource ID {val} at ({r},{c}) for Level {level}")
 
 def can_place_resource(grid, resource, orientation, top_left, level=1):
     """
@@ -15,6 +26,7 @@ def can_place_resource(grid, resource, orientation, top_left, level=1):
     Handles Level 1 and Level 2+ (radius-5 incompatibility).
     """
     check_grid_size(grid, level)
+    check_allowed_ids(grid, level)
 
     cells = resource['orientations'][orientation]['cells']
     r_id = resource['resource_id']
