@@ -1,8 +1,6 @@
 # handle grid and placement
 
 # Checking and modifying the grid
-# zoo_grid.py
-
 import numpy as np
 from utils import chebyshev_dist, in_bounds
 
