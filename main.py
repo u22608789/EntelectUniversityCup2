@@ -8,7 +8,8 @@ import numpy as np
 
 def main():
     res = load_resources(Path("resources.json"))
-    lvl = parse_level   (Path("1.txt"))
+    # lvl = parse_level   (Path("1.txt"))
+    lvl = parse_level   (Path("2.txt"))
 
     from zoo_grid import check_grid_size, check_allowed_ids
     check_grid_size(np.array(lvl["base_grid"]), lvl["level"])
@@ -20,7 +21,7 @@ def main():
     print(f"Placed {len(placements)} items.")
 
     stats = score_level1(placements, res)
-    print("Level-1 score:", stats["final_score"])
+    print("Level score:", stats["final_score"])
     
     write_solution(grid, "solution.txt")
     print("Wrote solution.txt")

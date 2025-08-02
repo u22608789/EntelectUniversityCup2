@@ -1,4 +1,4 @@
-# solver.py (at top)
+# solver.py
 import time
 from zoo_grid import can_place_resource
 from zoo_grid import place_resource
