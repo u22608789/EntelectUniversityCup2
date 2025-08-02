@@ -1,7 +1,7 @@
 # main.py
 from pathlib import Path
 from resources import load_resources, parse_level
-from solver    import solve_level
+from solver import solve_level, score_level2
 from utils     import score_level1, write_solution
 import numpy as np
 
@@ -18,8 +18,9 @@ def main():
     grid, placements = out["grid"], out["placements"]
     print(f"Placed {len(placements)} items.")
 
-    stats = score_level1(placements, res)
-    print("Level-1 score:", stats["final_score"])
+    stats = score_level2(placements, res, grid)
+    print("Level-2 score:", stats["final_score"])
+    print("Violations:", stats["violations"])
     
     write_solution(grid, "solution.txt")
     print("Wrote solution.txt")
