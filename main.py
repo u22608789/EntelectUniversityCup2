@@ -13,14 +13,15 @@ def main():
     from zoo_grid import check_grid_size, check_allowed_ids
     check_grid_size(np.array(lvl["base_grid"]), lvl["level"])
     check_allowed_ids(np.array(lvl["base_grid"]), lvl["level"])
-
+    
     out = solve_level(lvl, res)
+    
     grid, placements = out["grid"], out["placements"]
     print(f"Placed {len(placements)} items.")
 
     stats = score_level1(placements, res)
     print("Level-1 score:", stats["final_score"])
-
+    
     write_solution(grid, "solution.txt")
     print("Wrote solution.txt")
 

@@ -28,10 +28,15 @@ def score_level1(placements: List[Dict[str,Any]],
 
 # — Solution output — 
 def write_solution(grid: Any, path: str) -> None:
+    # Only convert if grid is a numpy array
+    if hasattr(grid, "tolist"):
+        grid = grid.tolist()
     with open(path, "w") as f:
         f.write("{\n  \"zoo\": [\n")
-        for i,row in enumerate(grid):
+        for i, row in enumerate(grid):
             line = json.dumps(row)
-            comma= "," if i < len(grid)-1 else ""
+            comma = "," if i < len(grid) - 1 else ""
             f.write(f"    {line}{comma}\n")
         f.write("  ]\n}\n")
+
+
