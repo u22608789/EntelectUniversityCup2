@@ -1,5 +1,4 @@
 # main.py
-
 from pathlib import Path
 from resources import load_resources, parse_level
 from solver    import solve_level

@@ -51,29 +51,39 @@ def solve_level(level, resources):
     avail      = level["available_resources"]
     placements = []
 
-    # Build sorted list of (rid, oi, cell_count), largest pieces first
+    # Build initial list of (rid, oi, cell_count)
     items = []
     for rid in avail:
         res = resources[rid]
         for oi, orient in enumerate(res["orientations"]):
             items.append((rid, oi, len(orient["cells"])))
-    items.sort(key=lambda x: x[2], reverse=True)
+    # items.sort(key=lambda x: x[2], reverse=True)  # We'll sort dynamically below
 
-    # For each cell, try each resource (and orientation), in order of largest to smallest
+    # Track usage counts for each resource_id
+    resource_counts = {rid: 0 for rid in avail}
+
     for r in range(grid.shape[0]):
         for c in range(grid.shape[1]):
             if grid[r, c] != 1:
                 continue  # already filled
-            for rid, oi, _ in items:
+
+            # Sort by least used count, then largest area
+            items_sorted = sorted(
+                items,
+                key=lambda x: (resource_counts[x[0]], -x[2])
+            )
+
+            for rid, oi, _ in items_sorted:
                 res = resources[rid]
-                if can_place_resource(grid, res, oi, (r,c), level=lvl):
-                    place_resource(grid, res, oi, (r,c))
+                if can_place_resource(grid, res, oi, (r, c), level=lvl):
+                    place_resource(grid, res, oi, (r, c))
                     placements.append({
                         "resource_id": rid,
                         "rotation": oi,
                         "top": r,
                         "left": c
                     })
-                    break  # only place one resource at each cell, then move to next cell
+                    resource_counts[rid] += 1
+                    break  # Only one resource per cell
 
     return {"grid": grid, "placements": placements}
