@@ -3,6 +3,8 @@ import time
 from zoo_grid import can_place_resource
 from zoo_grid import place_resource
 import numpy as np
+import random
+from utils import score_level1
 
 
 
@@ -45,45 +47,55 @@ import numpy as np
 
 #     return {"grid": grid, "placements": placements}
 
-def solve_level(level, resources):
-    grid       = np.array(level["base_grid"])
-    lvl        = level["level"]
-    avail      = level["available_resources"]
-    placements = []
+import random
 
-    # Build initial list of (rid, oi, cell_count)
-    items = []
-    for rid in avail:
-        res = resources[rid]
-        for oi, orient in enumerate(res["orientations"]):
-            items.append((rid, oi, len(orient["cells"])))
-    # items.sort(key=lambda x: x[2], reverse=True)  # We'll sort dynamically below
+def solve_level(level, resources, n_trials=10):
+    best_score = -1
+    best_result = None
 
-    # Track usage counts for each resource_id
-    resource_counts = {rid: 0 for rid in avail}
+    for trial in range(n_trials):
+        random.seed(trial)
+        grid = np.array(level["base_grid"])
+        lvl = level["level"]
+        avail = level["available_resources"]
+        placements = []
+        resource_counts = {rid: 0 for rid in avail}
 
-    for r in range(grid.shape[0]):
-        for c in range(grid.shape[1]):
-            if grid[r, c] != 1:
-                continue  # already filled
+        items = []
+        for rid in avail:
+            res = resources[rid]
+            for oi, orient in enumerate(res["orientations"]):
+                items.append((rid, oi, len(orient["cells"])))
 
-            # Sort by least used count, then largest area
-            items_sorted = sorted(
-                items,
-                key=lambda x: (resource_counts[x[0]], -x[2])
-            )
+        for r in range(grid.shape[0]):
+            for c in range(grid.shape[1]):
+                if grid[r, c] != 1:
+                    continue
+                # Get least-used count
+                min_count = min(resource_counts.values())
+                # Shuffle resources with min usage
+                random.shuffle(items)
+                items_sorted = sorted(
+                    items,
+                    key=lambda x: (resource_counts[x[0]], -x[2])
+                )
+                for rid, oi, _ in items_sorted:
+                    res = resources[rid]
+                    if can_place_resource(grid, res, oi, (r, c), level=lvl):
+                        place_resource(grid, res, oi, (r, c))
+                        placements.append({
+                            "resource_id": rid,
+                            "rotation": oi,
+                            "top": r,
+                            "left": c
+                        })
+                        resource_counts[rid] += 1
+                        break
 
-            for rid, oi, _ in items_sorted:
-                res = resources[rid]
-                if can_place_resource(grid, res, oi, (r, c), level=lvl):
-                    place_resource(grid, res, oi, (r, c))
-                    placements.append({
-                        "resource_id": rid,
-                        "rotation": oi,
-                        "top": r,
-                        "left": c
-                    })
-                    resource_counts[rid] += 1
-                    break  # Only one resource per cell
+        # Score this attempt
+        stats = score_level1(placements, resources)
+        if stats["final_score"] > best_score:
+            best_score = stats["final_score"]
+            best_result = {"grid": grid, "placements": placements}
 
-    return {"grid": grid, "placements": placements}
+    return best_result
