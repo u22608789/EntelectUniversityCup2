@@ -1,14 +1,21 @@
-# handle grid and placement
+# zoo_grid.py
 
-# Checking and modifying the grid
 import numpy as np
 from utils import chebyshev_dist, in_bounds
+
+def check_grid_size(grid, level):
+    if level == 1 and grid.shape != (50, 50):
+        raise ValueError(f"Level 1 grid must be 50x50, but got {grid.shape}")
+    if level >= 2 and grid.shape != (100, 100):
+        raise ValueError(f"Level 2+ grid must be 100x100, but got {grid.shape}")
 
 def can_place_resource(grid, resource, orientation, top_left, level=1):
     """
     Checks if a resource can be placed at the given top_left (row, col) with the specified orientation.
     Handles Level 1 and Level 2+ (radius-5 incompatibility).
     """
+    check_grid_size(grid, level)
+
     cells = resource['orientations'][orientation]['cells']
     r_id = resource['resource_id']
 
